@@ -75,6 +75,15 @@ void Task::set_argv(char argv[][BUFSIZ]){
 
 void Task::execl_cgi(){
 	// 带参数的请求, 执行响应的CGI程序
+	string cgi = "CGI/";
+	const char * file_name = (m_method.compare("GET") == 0 ? 
+					string(cgi + m_setting.url_get_handle_from[m_send_filename]).data()
+						:
+					string(cgi + m_setting.url_post_handle_from[m_send_filename]).data());
+	if(access(file_name, F_OK) != 0){
+		return;
+	}
+
 	pid_t pid = fork();
 	if(pid == -1){
 		return;
@@ -82,16 +91,13 @@ void Task::execl_cgi(){
 	if(pid == 0){
 		char argv[2][BUFSIZ] = {"", ""};
 		set_argv(argv);
+		cout << "CGI: " << file_name << endl;
 		dup2(m_client_fd, STDOUT_FILENO);
-		string cgi = "CGI/";
-
-		const char * file_name = (m_method.compare("GET") == 0 ? 
-					string(cgi + m_setting.url_get_handle_from[m_send_filename]).data()
-						:
-					string(cgi + m_setting.url_post_handle_from[m_send_filename]).data());
-
-		execl(file_name, file_name, m_method.data(), argv[0], argv[1]);
-
+		if(execl(file_name, file_name, m_method.data(), argv[0], argv[1]) == -1){
+			perror("execl error");
+			exit(1);
+		}
+	
 	}else{
 		wait(NULL);
 	}
